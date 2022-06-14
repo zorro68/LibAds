@@ -10,7 +10,7 @@ import android.widget.FrameLayout;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.ProcessLifecycleOwner;
 
-import com.example.ads.dialog.PrepareLoadingAdsDialog;
+import com.example.dialog.PrepareLoadingAdsDialog;
 import com.example.ads.funtion.AdCallback;
 import com.facebook.shimmer.ShimmerFrameLayout;
 import com.ironsource.mediationsdk.ISBannerSize;

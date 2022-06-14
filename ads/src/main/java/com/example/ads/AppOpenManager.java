@@ -20,7 +20,8 @@ import androidx.lifecycle.LifecycleObserver;
 import androidx.lifecycle.OnLifecycleEvent;
 import androidx.lifecycle.ProcessLifecycleOwner;
 
-import com.example.ads.dialog.PrepareLoadingAdsDialog;
+import com.example.dialog.PrepareLoadingAdsDialog;
+import com.example.ads.util.AdjustApero;
 import com.example.ads.util.FirebaseAnalyticsUtil;
 import com.google.android.gms.ads.AdActivity;
 import com.google.android.gms.ads.AdError;

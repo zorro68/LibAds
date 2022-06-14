@@ -1,4 +1,4 @@
-package com.example.ads.dialog;
+package com.example.dialog;
 
 import android.content.Context;
 import android.view.ViewGroup;

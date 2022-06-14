@@ -33,10 +33,11 @@ import androidx.lifecycle.ProcessLifecycleOwner;
 
 import com.applovin.mediation.AppLovinExtras;
 import com.applovin.mediation.ApplovinAdapter;
-import com.example.ads.dialog.PrepareLoadingAdsDialog;
+import com.example.dialog.PrepareLoadingAdsDialog;
 import com.example.ads.funtion.AdCallback;
 import com.example.ads.funtion.AdmodHelper;
 import com.example.ads.funtion.RewardCallback;
+import com.example.ads.util.AdjustApero;
 import com.example.ads.util.FirebaseAnalyticsUtil;
 import com.facebook.shimmer.ShimmerFrameLayout;
 import com.google.ads.mediation.facebook.FacebookAdapter;

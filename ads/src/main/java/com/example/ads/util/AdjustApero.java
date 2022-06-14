@@ -1,4 +1,4 @@
-package com.example.ads;
+package com.example.ads.util;
 
 import com.adjust.sdk.Adjust;
 import com.adjust.sdk.AdjustAdRevenue;
