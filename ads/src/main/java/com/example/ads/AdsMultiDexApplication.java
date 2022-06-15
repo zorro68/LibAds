@@ -19,7 +19,7 @@ import com.adjust.sdk.OnEventTrackingFailedListener;
 import com.adjust.sdk.OnEventTrackingSucceededListener;
 import com.adjust.sdk.OnSessionTrackingFailedListener;
 import com.adjust.sdk.OnSessionTrackingSucceededListener;
-import com.example.ads.util.AdjustApero;
+import com.example.util.AdjustTLA;
 
 import java.util.List;
 
@@ -38,7 +38,7 @@ public abstract class AdsMultiDexApplication extends MultiDexApplication {
     }
 
     private void setupIdEvent() {
-        AdjustApero.enableAdjust = true;
+        AdjustTLA.enableAdjust = true;
     }
 
     private void setupAdjust() {

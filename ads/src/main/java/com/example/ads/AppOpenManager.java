@@ -20,9 +20,10 @@ import androidx.lifecycle.LifecycleObserver;
 import androidx.lifecycle.OnLifecycleEvent;
 import androidx.lifecycle.ProcessLifecycleOwner;
 
+import com.example.billing.AppPurchase;
 import com.example.dialog.PrepareLoadingAdsDialog;
-import com.example.ads.util.AdjustApero;
-import com.example.ads.util.FirebaseAnalyticsUtil;
+import com.example.util.AdjustTLA;
+import com.example.util.FirebaseAnalyticsUtil;
 import com.google.android.gms.ads.AdActivity;
 import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdRequest;
@@ -184,7 +185,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                         if (!isSplash) {
                             AppOpenManager.this.appResumeAd = ad;
                             AppOpenManager.this.appResumeAd.setOnPaidEventListener(adValue -> {
-                                AdjustApero.pushTrackEventAdmod( adValue);
+                                AdjustTLA.pushTrackEventAdmod( adValue);
                                 FirebaseAnalyticsUtil.logPaidAdImpression(myApplication.getApplicationContext(),
                                         adValue,
                                         ad.getAdUnitId(),
@@ -195,7 +196,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                         } else {
                             AppOpenManager.this.splashAd = ad;
                             AppOpenManager.this.splashAd.setOnPaidEventListener(adValue -> {
-                                AdjustApero.pushTrackEventAdmod(adValue);
+                                AdjustTLA.pushTrackEventAdmod(adValue);
                                 FirebaseAnalyticsUtil.logPaidAdImpression(myApplication.getApplicationContext(),
                                         adValue,
                                         ad.getAdUnitId(),

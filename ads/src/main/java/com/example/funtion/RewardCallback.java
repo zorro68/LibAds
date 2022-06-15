@@ -1,4 +1,4 @@
-package com.example.ads.funtion;
+package com.example.funtion;
 
 import com.google.android.gms.ads.rewarded.RewardItem;
 

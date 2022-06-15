@@ -1,17 +1,20 @@
-package com.example.ads.util;
+package com.example.util;
+
+import android.content.Context;
 
 import com.adjust.sdk.Adjust;
 import com.adjust.sdk.AdjustAdRevenue;
 import com.adjust.sdk.AdjustConfig;
 import com.adjust.sdk.AdjustEvent;
+import com.applovin.mediation.MaxAd;
 import com.google.android.gms.ads.AdValue;
 
-public class AdjustApero {
+public class AdjustTLA {
     public static boolean enableAdjust = false;
     private static String eventNamePurchase = "";
 
     public static void setEventNamePurchase(String eventNamePurchase) {
-        AdjustApero.eventNamePurchase = eventNamePurchase;
+        AdjustTLA.eventNamePurchase = eventNamePurchase;
     }
 
     public static void trackAdRevenue(String id) {
@@ -34,22 +37,35 @@ public class AdjustApero {
     public static void onTrackRevenue(String eventName, float revenue, String currency) {
         AdjustEvent event = new AdjustEvent(eventName);
         // Add revenue 1 cent of an euro.
-        event.setRevenue(revenue / 1000000.0, currency);
+        event.setRevenue(revenue/ 1000000.0, currency);
         Adjust.trackEvent(event);
     }
 
     public static void onTrackRevenuePurchase(float revenue, String currency) {
-        if (AdjustApero.enableAdjust) {
+        if (AdjustTLA.enableAdjust) {
             onTrackRevenue(eventNamePurchase, revenue, currency);
         }
     }
 
-    public static void pushTrackEventAdmod(AdValue adValue) {
-        if (AdjustApero.enableAdjust) {
+    public static void pushTrackEventAdmod(  AdValue adValue) {
+        if (AdjustTLA.enableAdjust) {
             AdjustAdRevenue adRevenue = new AdjustAdRevenue(AdjustConfig.AD_REVENUE_ADMOB);
             adRevenue.setRevenue(adValue.getValueMicros() / 1000000.0, adValue.getCurrencyCode());
 
             Adjust.trackAdRevenue(adRevenue);
+        }
+    }
+    public static void pushTrackEventApplovin(MaxAd ad, Context context) {
+        if (AdjustTLA.enableAdjust) {
+            AdjustAdRevenue adjustAdRevenue = new AdjustAdRevenue( AdjustConfig.AD_REVENUE_APPLOVIN_MAX );
+            adjustAdRevenue.setRevenue( ad.getRevenue(), "USD" );
+            adjustAdRevenue.setAdRevenueNetwork( ad.getNetworkName() );
+            adjustAdRevenue.setAdRevenueUnit( ad.getAdUnitId() );
+            adjustAdRevenue.setAdRevenuePlacement( ad.getPlacement() );
+
+            Adjust.trackAdRevenue( adjustAdRevenue );
+
+            FirebaseAnalyticsUtil.logPaidAdImpression(context,ad);
         }
     }
 }

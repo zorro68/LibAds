@@ -8,6 +8,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.content.res.Resources;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -33,12 +34,14 @@ import androidx.lifecycle.ProcessLifecycleOwner;
 
 import com.applovin.mediation.AppLovinExtras;
 import com.applovin.mediation.ApplovinAdapter;
+import com.example.billing.AppPurchase;
 import com.example.dialog.PrepareLoadingAdsDialog;
-import com.example.ads.funtion.AdCallback;
-import com.example.ads.funtion.AdmodHelper;
-import com.example.ads.funtion.RewardCallback;
-import com.example.ads.util.AdjustApero;
-import com.example.ads.util.FirebaseAnalyticsUtil;
+import com.example.funtion.AdCallback;
+import com.example.funtion.AdmodHelper;
+import com.example.funtion.RewardCallback;
+import com.example.util.AdjustTLA;
+import com.example.util.AppUtil;
+import com.example.util.FirebaseAnalyticsUtil;
 import com.facebook.shimmer.ShimmerFrameLayout;
 import com.google.ads.mediation.facebook.FacebookAdapter;
 import com.google.ads.mediation.facebook.FacebookExtras;
@@ -92,6 +95,10 @@ public class Admod {
     boolean isTimeDelay = false; //xử lý delay time show ads, = true mới show ads
     private boolean openActivityAfterShowInterAds = false;
     private Context context;
+//    private AppOpenAd appOpenAd = null;
+//    private static final String SHARED_PREFERENCE_NAME = "ads_shared_preference";
+
+//    private final Map<String, AppOpenAd> appOpenAdMap = new HashMap<>();
 
     InterstitialAd mInterstitialSplash;
     InterstitialAd interstitialAd;
@@ -178,6 +185,10 @@ public class Admod {
         this.context = context;
     }
 
+
+    public boolean isShowLoadingSplash() {
+        return isShowLoadingSplash;
+    }
 
     private String getProcessName(Context context) {
         if (context == null) return null;
@@ -291,6 +302,8 @@ public class Admod {
             handlerTimeout.postDelayed(rdTimeout, timeOut);
         }
 
+//        if (isShowLoadingSplash)
+//            return;
         isShowLoadingSplash = true;
         getInterstitalAds(context, id, new AdCallback() {
             @Override
@@ -303,6 +316,111 @@ public class Admod {
                     mInterstitialSplash = interstitialAd;
                     if (isTimeDelay) {
                         onShowSplash((Activity) context, adListener);
+                        Log.i(TAG, "loadSplashInterstitalAds:show ad on loaded ");
+                    }
+                }
+            }
+
+            @Override
+            public void onAdFailedToLoad(LoadAdError i) {
+                super.onAdFailedToLoad(i);
+                isShowLoadingSplash = false;
+                Log.e(TAG, "loadSplashInterstitalAds  end time loading error:" + Calendar.getInstance().getTimeInMillis() + "     time limit:" + isTimeout);
+                if (isTimeout)
+                    return;
+                if (adListener != null) {
+                    if (handlerTimeout != null && rdTimeout != null) {
+                        handlerTimeout.removeCallbacks(rdTimeout);
+                    }
+                    if (i != null)
+                        Log.e(TAG, "loadSplashInterstitalAds: load fail " + i.getMessage());
+                    adListener.onAdFailedToLoad(i);
+                }
+            }
+        });
+
+    }
+
+    /**
+     * Load quảng cáo Full tại màn SplashActivity
+     * Sau khoảng thời gian timeout thì load ads và callback về cho View
+     *
+     * @param context
+     * @param id
+     * @param timeOut           : thời gian chờ ads, timeout <= 0 tương đương với việc bỏ timeout
+     * @param timeDelay         : thời gian chờ show ad từ lúc load ads
+     * @param showSplashIfReady : auto show ad splash if ready
+     * @param adListener
+     */
+    public void loadSplashInterstitalAds(final Context context, String id, long timeOut, long timeDelay, boolean showSplashIfReady, AdCallback adListener) {
+        isTimeDelay = false;
+        isTimeout = false;
+        Log.i(TAG, "loadSplashInterstitalAds  start time loading:" + Calendar.getInstance().getTimeInMillis() + "    ShowLoadingSplash:" + isShowLoadingSplash);
+
+        if (AppPurchase.getInstance().isPurchased(context)) {
+            if (adListener != null) {
+                adListener.onAdClosed();
+            }
+            return;
+        }
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                //check delay show ad splash
+                if (mInterstitialSplash != null) {
+                    Log.i(TAG, "loadSplashInterstitalAds:show ad on delay ");
+                    if (showSplashIfReady)
+                        onShowSplash((Activity) context, adListener);
+                    else
+                        adListener.onAdSplashReady();
+                    return;
+                }
+                Log.i(TAG, "loadSplashInterstitalAds: delay validate");
+                isTimeDelay = true;
+            }
+        }, timeDelay);
+
+        if (timeOut > 0) {
+            handlerTimeout = new Handler();
+            rdTimeout = new Runnable() {
+                @Override
+                public void run() {
+                    Log.e(TAG, "loadSplashInterstitalAds: on timeout");
+                    isTimeout = true;
+                    if (mInterstitialSplash != null) {
+                        Log.i(TAG, "loadSplashInterstitalAds:show ad on timeout ");
+                        if (showSplashIfReady)
+                            onShowSplash((Activity) context, adListener);
+                        else
+                            adListener.onAdSplashReady();
+                        return;
+                    }
+                    if (adListener != null) {
+                        adListener.onAdClosed();
+                        isShowLoadingSplash = false;
+                    }
+                }
+            };
+            handlerTimeout.postDelayed(rdTimeout, timeOut);
+        }
+
+//        if (isShowLoadingSplash)
+//            return;
+        isShowLoadingSplash = true;
+        getInterstitalAds(context, id, new AdCallback() {
+            @Override
+            public void onInterstitialLoad(InterstitialAd interstitialAd) {
+                super.onInterstitialLoad(interstitialAd);
+                Log.e(TAG, "loadSplashInterstitalAds  end time loading success:" + Calendar.getInstance().getTimeInMillis() + "     time limit:" + isTimeout);
+                if (isTimeout)
+                    return;
+                if (interstitialAd != null) {
+                    mInterstitialSplash = interstitialAd;
+                    if (isTimeDelay) {
+                        if (showSplashIfReady)
+                            onShowSplash((Activity) context, adListener);
+                        else
+                            adListener.onAdSplashReady();
                         Log.i(TAG, "loadSplashInterstitalAds:show ad on loaded ");
                     }
                 }
@@ -327,21 +445,25 @@ public class Admod {
 
     }
 
-    private void onShowSplash(Activity activity, AdCallback adListener) {
+    public void onShowSplash(Activity activity, AdCallback adListener) {
         isShowLoadingSplash = true;
+        Log.d(TAG, "onShowSplash: ");
 
-
-        if (mInterstitialSplash != null) {
-            mInterstitialSplash.setOnPaidEventListener(adValue -> {
-                Log.d(TAG, "OnPaidEvent splash:" + adValue.getValueMicros());
-                AdjustApero.pushTrackEventAdmod(adValue);
-                FirebaseAnalyticsUtil.logPaidAdImpression(context,
-                        adValue,
-                        mInterstitialSplash.getAdUnitId(),
-                        mInterstitialSplash.getResponseInfo()
-                                .getMediationAdapterClassName());
-            });
+        if (mInterstitialSplash == null) {
+            adListener.onAdClosed();
+            return;
         }
+
+        mInterstitialSplash.setOnPaidEventListener(adValue -> {
+            Log.d(TAG, "OnPaidEvent splash:" + adValue.getValueMicros());
+            AdjustTLA.pushTrackEventAdmod(adValue);
+            FirebaseAnalyticsUtil.logPaidAdImpression(context,
+                    adValue,
+                    mInterstitialSplash.getAdUnitId(),
+                    mInterstitialSplash.getResponseInfo()
+                            .getMediationAdapterClassName());
+        });
+
         if (handlerTimeout != null && rdTimeout != null) {
             handlerTimeout.removeCallbacks(rdTimeout);
         }
@@ -364,6 +486,8 @@ public class Admod {
                 if (adListener != null) {
                     if (!openActivityAfterShowInterAds) {
                         adListener.onAdClosed();
+                    } else {
+                        adListener.onAdClosedByUser();
                     }
 
                     if (dialog != null) {
@@ -371,10 +495,12 @@ public class Admod {
                     }
                 }
                 mInterstitialSplash = null;
+                isShowLoadingSplash = false;
             }
 
             @Override
             public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
+                Log.e(TAG, "Splash onAdFailedToShowFullScreenContent: ");
                 mInterstitialSplash = null;
                 isShowLoadingSplash = false;
                 if (adListener != null) {
@@ -386,7 +512,12 @@ public class Admod {
                         dialog.dismiss();
                     }
                 }
+            }
 
+            @Override
+            public void onAdClicked() {
+                super.onAdClicked();
+                FirebaseAnalyticsUtil.logClickAdsEvent(context, mInterstitialSplash.getAdUnitId());
             }
         });
 
@@ -412,21 +543,38 @@ public class Admod {
 
                 if (openActivityAfterShowInterAds && adListener != null) {
                     adListener.onAdClosed();
-                    new Handler().postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-
-                            if (dialog != null && dialog.isShowing() && !activity.isDestroyed())
-                                dialog.dismiss();
-                        }
+                    new Handler().postDelayed(() -> {
+                        if (dialog != null && dialog.isShowing() && !activity.isDestroyed())
+                            dialog.dismiss();
                     }, 1500);
                 }
-
-                mInterstitialSplash.show(activity);
-                isShowLoadingSplash = false;
+                if (activity != null && mInterstitialSplash != null) {
+                    mInterstitialSplash.show(activity);
+                    isShowLoadingSplash = false;
+                } else if (adListener != null) {
+                    if (dialog != null) {
+                        dialog.dismiss();
+                    }
+                    adListener.onAdClosed();
+                    isShowLoadingSplash = false;
+                }
             }, 800);
 
+        } else {
+            isShowLoadingSplash = false;
+            Log.e(TAG, "onShowSplash: fail on background");
         }
+    }
+
+    public void onCheckShowSplashWhenFail(Activity activity, AdCallback callback, int timeDelay) {
+        new Handler(activity.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (interstialSplashLoead() && !isShowLoadingSplash()) {
+                    Admod.getInstance().onShowSplash(activity, callback);
+                }
+            }
+        }, timeDelay);
     }
 
     public void loadInterstitialAds(Context context, String id, long timeOut, AdCallback adListener) {
@@ -464,7 +612,7 @@ public class Admod {
 
                 if (interstitialAd != null) {
                     interstitialAd.setOnPaidEventListener(adValue -> {
-                        AdjustApero.pushTrackEventAdmod(adValue);
+                        AdjustTLA.pushTrackEventAdmod(adValue);
                         Log.d(TAG, "OnPaidEvent loadInterstitialAds:" + adValue.getValueMicros());
                         FirebaseAnalyticsUtil.logPaidAdImpression(context,
                                 adValue,
@@ -519,6 +667,7 @@ public class Admod {
         }
         if (AppPurchase.getInstance().isPurchased(context) || AdmodHelper.getNumClickAdsPerDay(context, id) >= maxClickAds) {
             adCallback.onInterstitialLoad(null);
+            return;
         }
 
 
@@ -533,7 +682,7 @@ public class Admod {
                         interstitialAd.setOnPaidEventListener(adValue -> {
 
                             Log.d(TAG, "OnPaidEvent getInterstitalAds:" + adValue.getValueMicros());
-                            AdjustApero.pushTrackEventAdmod(adValue);
+                            AdjustTLA.pushTrackEventAdmod(adValue);
                             FirebaseAnalyticsUtil.logPaidAdImpression(context,
                                     adValue,
                                     interstitialAd.getAdUnitId(),
@@ -628,6 +777,8 @@ public class Admod {
                 if (callback != null) {
                     if (!openActivityAfterShowInterAds) {
                         callback.onAdClosed();
+                    } else {
+                        callback.onAdClosedByUser();
                     }
 
                     if (dialog != null) {
@@ -658,6 +809,12 @@ public class Admod {
             public void onAdShowedFullScreenContent() {
                 super.onAdShowedFullScreenContent();
                 // Called when fullscreen content is shown.
+            }
+
+            @Override
+            public void onAdClicked() {
+                super.onAdClicked();
+                FirebaseAnalyticsUtil.logClickAdsEvent(context, mInterstitialAd.getAdUnitId());
             }
         });
 
@@ -869,6 +1026,7 @@ public class Admod {
             adView.setAdUnitId(id);
             adContainer.addView(adView);
             AdSize adSize = getAdSize(mActivity, useInlineAdaptive);
+            containerShimmer.getLayoutParams().height = (int) (adSize.getHeight() * Resources.getSystem().getDisplayMetrics().density + 0.5f);
             adView.setAdSize(adSize);
             adView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
             adView.loadAd(getAdRequest());
@@ -890,7 +1048,8 @@ public class Admod {
                     adContainer.setVisibility(View.VISIBLE);
                     if (adView != null) {
                         adView.setOnPaidEventListener(adValue -> {
-                            AdjustApero.pushTrackEventAdmod(adValue);
+                            Log.d(TAG, "OnPaidEvent banner:" + adValue.getValueMicros());
+                            AdjustTLA.pushTrackEventAdmod(adValue);
                             FirebaseAnalyticsUtil.logPaidAdImpression(context,
                                     adValue,
                                     adView.getAdUnitId(),
@@ -900,6 +1059,11 @@ public class Admod {
                     }
                 }
 
+                @Override
+                public void onAdClicked() {
+                    super.onAdClicked();
+                    FirebaseAnalyticsUtil.logClickAdsEvent(context, id);
+                }
             });
 
 
@@ -924,9 +1088,9 @@ public class Admod {
             adView.setAdUnitId(id);
             adContainer.addView(adView);
             AdSize adSize = getAdSize(mActivity, useInlineAdaptive);
+            containerShimmer.getLayoutParams().height = (int) (adSize.getHeight() * Resources.getSystem().getDisplayMetrics().density + 0.5f);
             adView.setAdSize(adSize);
             adView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-            adView.loadAd(getAdRequest());
             adView.setAdListener(new AdListener() {
                 @Override
                 public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
@@ -944,7 +1108,8 @@ public class Admod {
                     adContainer.setVisibility(View.VISIBLE);
                     if (adView != null) {
                         adView.setOnPaidEventListener(adValue -> {
-                            AdjustApero.pushTrackEventAdmod(adValue);
+                            Log.d(TAG, "OnPaidEvent banner:" + adValue.getValueMicros());
+                            AdjustTLA.pushTrackEventAdmod(adValue);
                             FirebaseAnalyticsUtil.logPaidAdImpression(context,
                                     adValue,
                                     adView.getAdUnitId(),
@@ -957,6 +1122,7 @@ public class Admod {
                 @Override
                 public void onAdClicked() {
                     super.onAdClicked();
+                    FirebaseAnalyticsUtil.logClickAdsEvent(context, id);
                     if (callback != null) {
                         callback.onAdClicked();
                         Log.d(TAG, "onAdClicked");
@@ -965,7 +1131,7 @@ public class Admod {
 
             });
 
-
+            adView.loadAd(getAdRequest());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -1043,7 +1209,8 @@ public class Admod {
                     public void onNativeAdLoaded(@NonNull NativeAd nativeAd) {
                         callback.onUnifiedNativeAdLoaded(nativeAd);
                         nativeAd.setOnPaidEventListener(adValue -> {
-                            AdjustApero.pushTrackEventAdmod(adValue);
+                            Log.d(TAG, "OnPaidEvent getInterstitalAds:" + adValue.getValueMicros());
+                            AdjustTLA.pushTrackEventAdmod(adValue);
                             FirebaseAnalyticsUtil.logPaidAdImpression(context,
                                     adValue,
                                     "",
@@ -1061,6 +1228,7 @@ public class Admod {
                     @Override
                     public void onAdClicked() {
                         super.onAdClicked();
+                        FirebaseAnalyticsUtil.logClickAdsEvent(context, id);
                         if (callback != null) {
                             callback.onAdClicked();
                             Log.d(TAG, "onAdClicked");
@@ -1105,7 +1273,8 @@ public class Admod {
                         @SuppressLint("InflateParams") NativeAdView adView = (NativeAdView) LayoutInflater.from(context)
                                 .inflate(layout, null);
                         nativeAd.setOnPaidEventListener(adValue -> {
-                            AdjustApero.pushTrackEventAdmod(adValue);
+                            Log.d(TAG, "OnPaidEvent native:" + adValue.getValueMicros());
+                            AdjustTLA.pushTrackEventAdmod(adValue);
                             FirebaseAnalyticsUtil.logPaidAdImpression(context,
                                     adValue,
                                     "",
@@ -1127,7 +1296,11 @@ public class Admod {
                         frameLayout.setVisibility(View.GONE);
                     }
 
-
+                    @Override
+                    public void onAdClicked() {
+                        super.onAdClicked();
+                        FirebaseAnalyticsUtil.logClickAdsEvent(context, id);
+                    }
                 })
                 .withNativeAdOptions(adOptions)
                 .build();
@@ -1168,7 +1341,8 @@ public class Admod {
                         @SuppressLint("InflateParams") NativeAdView adView = (NativeAdView) LayoutInflater.from(context)
                                 .inflate(layout, null);
                         nativeAd.setOnPaidEventListener(adValue -> {
-                            AdjustApero.pushTrackEventAdmod(adValue);
+                            Log.d(TAG, "OnPaidEvent Native:" + adValue.getValueMicros());
+                            AdjustTLA.pushTrackEventAdmod(adValue);
                             FirebaseAnalyticsUtil.logPaidAdImpression(context,
                                     adValue,
                                     "",
@@ -1193,6 +1367,7 @@ public class Admod {
                     @Override
                     public void onAdClicked() {
                         super.onAdClicked();
+                        FirebaseAnalyticsUtil.logClickAdsEvent(context, id);
                         if (callback != null) {
                             callback.onAdClicked();
                             Log.d(TAG, "onAdClicked");
@@ -1201,6 +1376,7 @@ public class Admod {
                 })
                 .withNativeAdOptions(adOptions)
                 .build();
+
 
         adLoader.loadAd(getAdRequest());
     }
@@ -1360,7 +1536,9 @@ public class Admod {
             public void onAdLoaded(@NonNull RewardedAd rewardedAd) {
                 Admod.this.rewardedAd = rewardedAd;
                 Admod.this.rewardedAd.setOnPaidEventListener(adValue -> {
-                    AdjustApero.pushTrackEventAdmod(adValue);
+
+                    Log.d(TAG, "OnPaidEvent Reward:" + adValue.getValueMicros());
+                    AdjustTLA.pushTrackEventAdmod(adValue);
                     FirebaseAnalyticsUtil.logPaidAdImpression(context,
                             adValue,
                             "",
@@ -1399,7 +1577,8 @@ public class Admod {
                 callback.onAdLoaded();
                 Admod.this.rewardedAd = rewardedAd;
                 Admod.this.rewardedAd.setOnPaidEventListener(adValue -> {
-                    AdjustApero.pushTrackEventAdmod(adValue);
+                    Log.d(TAG, "OnPaidEvent Reward:" + adValue.getValueMicros());
+                    AdjustTLA.pushTrackEventAdmod(adValue);
                     FirebaseAnalyticsUtil.logPaidAdImpression(context,
                             adValue,
                             "",
@@ -1411,6 +1590,7 @@ public class Admod {
             @Override
             public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                 callback.onAdFailedToLoad(loadAdError);
+                Admod.this.rewardedAd = null;
                 Log.e(TAG, "RewardedAd onAdFailedToLoad: " + loadAdError.getMessage());
             }
         });
@@ -1431,7 +1611,6 @@ public class Admod {
     public void showRewardAds(final Activity context, final RewardCallback adCallback) {
         if (AppPurchase.getInstance().isPurchased(context)) {
             adCallback.onUserEarnedReward(null);
-
             return;
         }
         if (rewardedAd == null) {
@@ -1446,6 +1625,11 @@ public class Admod {
                     super.onAdDismissedFullScreenContent();
                     if (adCallback != null)
                         adCallback.onRewardedAdClosed();
+
+                    if (AppOpenManager.getInstance().isInitialized()) {
+                        AppOpenManager.getInstance().enableAppResume();
+                    }
+
                 }
 
                 @Override
@@ -1454,16 +1638,30 @@ public class Admod {
                     if (adCallback != null)
                         adCallback.onRewardedAdFailedToShow(adError.getCode());
                 }
+
+                @Override
+                public void onAdShowedFullScreenContent() {
+                    super.onAdShowedFullScreenContent();
+                    if (AppOpenManager.getInstance().isInitialized()) {
+                        AppOpenManager.getInstance().disableAppResume();
+                    }
+                    initRewardAds(context, nativeId);
+                    rewardedAd = null;
+                }
+
+                public void onAdClicked() {
+                    super.onAdClicked();
+                    FirebaseAnalyticsUtil.logClickAdsEvent(context, rewardedAd.getAdUnitId());
+                }
             });
             rewardedAd.show(context, new OnUserEarnedRewardListener() {
                 @Override
                 public void onUserEarnedReward(@NonNull RewardItem rewardItem) {
                     if (adCallback != null) {
                         adCallback.onUserEarnedReward(rewardItem);
-                        initRewardAds(context, nativeId);
+
                     }
                 }
-
             });
         }
     }
@@ -1531,11 +1729,11 @@ public class Admod {
             notificationManager.createNotificationChannel(channel);
         }
         notificationManager.notify(typeAds, notification);
-//        String build_type = BuildConfig.BUILD_TYPE;
-//        Log.e(TAG, "Found test ad id on : "+build_type );
-//
-//        if (build_type.equals("release")){
-//             throw new RuntimeException("Found test ad id on release");
+
+        Log.e(TAG, "Found test ad id on debug : " + AppUtil.BUILD_DEBUG);
+
+//        if (!AppUtil.BUILD_DEBUG) {
+//            throw new RuntimeException("Found test ad id on release");
 //        }
     }
 

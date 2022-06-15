@@ -1,6 +1,4 @@
-package com.example.ads.funtion;
-
-import android.content.Intent;
+package com.example.funtion;
 
 public interface BillingListener {
     void onInitBillingListener(int code);

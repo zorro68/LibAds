@@ -1,4 +1,4 @@
-package com.example.ads.funtion;
+package com.example.funtion;
 
 public interface PurchaseListioner {
     void onProductPurchased(String productId, String transactionDetails);

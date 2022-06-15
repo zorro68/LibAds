@@ -10,7 +10,7 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 
 import com.example.ads.Admod;
-import com.example.ads.DialogExitListener;
+import com.example.funtion.DialogExitListener;
 import com.example.ads.R;
 import com.google.android.gms.ads.nativead.NativeAd;
 import com.google.android.gms.ads.nativead.NativeAdView;
