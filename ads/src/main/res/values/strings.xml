@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_open_test">ca-app-pub-3940256099942544/3419835294</string>
     <string name="cancel">Cancel</string>
@@ -9,6 +8,7 @@
     <string name="remove_all_anoying_ads_forever_by_just">Remove all anoying ads forever by just:</string>
     <string name="buy_now">Buy now</string>
     <string name="loading_ads">Loading Ads…</string>
+    <string name="well_comeback">Welcome back</string>
 
     <string-array name="list_id_test">
         <!--        app open-->
