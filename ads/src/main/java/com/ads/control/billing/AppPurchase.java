@@ -599,7 +599,6 @@ public class AppPurchase {
         //tracking adjust
         double price = getPriceWithoutCurrency(idPurchaseCurrent, typeIap);
         String currentcy = getCurrency(idPurchaseCurrent, typeIap);
-        AdjustTLApp.onTrackRevenuePurchase((float) price, currentcy);
 
         if (purchaseListioner != null)
             isPurchase = true;
