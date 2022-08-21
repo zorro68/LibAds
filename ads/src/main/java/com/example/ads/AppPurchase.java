@@ -507,7 +507,6 @@ public class AppPurchase {
         //tracking adjust
         double price = getPriceWithoutCurrency(idPurchaseCurrent, typeIap);
         String current = getCurrency(idPurchaseCurrent, typeIap);
-        AdjustApero.onTrackRevenuePurchase((float) price, current);
 
         if (purchaseListioner != null)
             purchaseListioner.onProductPurchased(purchase.getOrderId(), purchase.getOriginalJson());

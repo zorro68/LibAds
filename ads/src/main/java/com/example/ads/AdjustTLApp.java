@@ -6,12 +6,12 @@ import com.adjust.sdk.AdjustConfig;
 import com.adjust.sdk.AdjustEvent;
 import com.google.android.gms.ads.AdValue;
 
-public class AdjustApero {
+public class AdjustTLApp {
     public static boolean enableAdjust = false;
     private static String eventNamePurchase = "";
 
     public static void setEventNamePurchase(String eventNamePurchase) {
-        AdjustApero.eventNamePurchase = eventNamePurchase;
+        AdjustTLApp.eventNamePurchase = eventNamePurchase;
     }
 
     public static void trackAdRevenue(String id) {
@@ -39,13 +39,13 @@ public class AdjustApero {
     }
 
     public static void onTrackRevenuePurchase(float revenue, String currency) {
-        if (AdjustApero.enableAdjust) {
+        if (AdjustTLApp.enableAdjust) {
             onTrackRevenue(eventNamePurchase, revenue, currency);
         }
     }
 
     public static void pushTrackEventAdmod(AdValue adValue) {
-        if (AdjustApero.enableAdjust) {
+        if (AdjustTLApp.enableAdjust) {
             AdjustAdRevenue adRevenue = new AdjustAdRevenue(AdjustConfig.AD_REVENUE_ADMOB);
             adRevenue.setRevenue(adValue.getValueMicros() / 1000000.0, adValue.getCurrencyCode());
 
