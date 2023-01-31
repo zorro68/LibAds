@@ -22,6 +22,7 @@ import androidx.lifecycle.ProcessLifecycleOwner;
 
 import com.example.billing.AppPurchase;
 import com.example.dialog.PrepareLoadingAdsDialog;
+import com.example.dialog.ResumeLoadingDialog;
 import com.example.util.AdjustTLA;
 import com.example.util.FirebaseAnalyticsUtil;
 import com.google.android.gms.ads.AdActivity;
@@ -58,21 +59,31 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
     private long splashLoadTime = 0;
     private int splashTimeout = 0;
 
-    private boolean isInitialized = false;
+    private boolean isInitialized = false;// on  - off ad resume on app
     private boolean isAppResumeEnabled = true;
-
+    private boolean isInterstitialShowing = false;
+    private boolean enableScreenContentCallback = false; // default =  true when use splash & false after show splash
+    private boolean disableAdResumeByClickAction = false;
     private final List<Class> disabledAppOpenList;
     private Class splashActivity;
 
     private boolean isTimeout = false;
     private static final int TIMEOUT_MSG = 11;
 
-    private Handler timeoutHandler = new Handler(msg -> {
-        if (msg.what == TIMEOUT_MSG) {
-            isTimeout = true;
-        }
-        return false;
-    });
+    private Handler timeoutHandler;
+//            = new Handler(msg -> {
+//        if (msg.what == TIMEOUT_MSG) {
+//
+//                Log.e(TAG, "timeout load ad ");
+//                isTimeout = true;
+//                enableScreenContentCallback = false;
+//                if (fullScreenContentCallback != null) {
+//                    fullScreenContentCallback.onAdDismissedFullScreenContent();
+//                }
+//
+//        }
+//        return false;
+//    });
 
     /**
      * Constructor
@@ -95,10 +106,15 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
      */
     public void init(Application application, String appOpenAdId) {
         isInitialized = true;
+        disableAdResumeByClickAction = false;
         this.myApplication = application;
         this.myApplication.registerActivityLifecycleCallbacks(this);
         ProcessLifecycleOwner.get().getLifecycle().addObserver(this);
         this.appResumeAdId = appOpenAdId;
+//        if (!Purchase.getInstance().isPurchased(application.getApplicationContext()) &&
+//                !isAdAvailable(false) && appOpenAdId != null) {
+//            fetchAd(false);
+//        }
     }
 
     public boolean isInitialized() {
@@ -108,6 +124,29 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
 
     public void setInitialized(boolean initialized) {
         isInitialized = initialized;
+    }
+
+    public void setEnableScreenContentCallback(boolean enableScreenContentCallback) {
+        this.enableScreenContentCallback = enableScreenContentCallback;
+    }
+
+    public boolean isInterstitialShowing() {
+        return isInterstitialShowing;
+    }
+
+    public void setInterstitialShowing(boolean interstitialShowing) {
+        isInterstitialShowing = interstitialShowing;
+    }
+
+    /**
+     * Call disable ad resume when click a button, auto enable ad resume in next start
+     */
+    public void disableAdResumeByClickAction() {
+        disableAdResumeByClickAction = true;
+    }
+
+    public void setDisableAdResumeByClickAction(boolean disableAdResumeByClickAction) {
+        this.disableAdResumeByClickAction = disableAdResumeByClickAction;
     }
 
     /**
@@ -185,7 +224,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                         if (!isSplash) {
                             AppOpenManager.this.appResumeAd = ad;
                             AppOpenManager.this.appResumeAd.setOnPaidEventListener(adValue -> {
-                                AdjustTLA.pushTrackEventAdmod( adValue);
+//                                AdjustApero.pushTrackEventAdmob(adValue);
                                 FirebaseAnalyticsUtil.logPaidAdImpression(myApplication.getApplicationContext(),
                                         adValue,
                                         ad.getAdUnitId(),
@@ -196,7 +235,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                         } else {
                             AppOpenManager.this.splashAd = ad;
                             AppOpenManager.this.splashAd.setOnPaidEventListener(adValue -> {
-                                AdjustTLA.pushTrackEventAdmod(adValue);
+//                                AdjustApero.pushTrackEventAdmob(adValue);
                                 FirebaseAnalyticsUtil.logPaidAdImpression(myApplication.getApplicationContext(),
                                         adValue,
                                         ad.getAdUnitId(),
@@ -218,14 +257,19 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                     @Override
                     public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                         Log.d(TAG, "onAppOpenAdFailedToLoad: isSplash" + isSplash + " message " + loadAdError.getMessage());
+//                        if (isSplash && fullScreenContentCallback!=null)
+//                            fullScreenContentCallback.onAdDismissedFullScreenContent();
                     }
 
 
                 };
-        if (currentActivity!=null) {
+        if (currentActivity != null) {
+            if (AppPurchase.getInstance().isPurchased(currentActivity))
+                return;
             if (Arrays.asList(currentActivity.getResources().getStringArray(R.array.list_id_test)).contains(isSplash ? splashAdId : appResumeAdId)) {
                 showTestIdAlert(currentActivity, isSplash, isSplash ? splashAdId : appResumeAdId);
             }
+
         }
         AdRequest request = getAdRequest();
         AppOpenAd.load(
@@ -249,6 +293,9 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
             notificationManager.createNotificationChannel(channel);
         }
         notificationManager.notify(isSplash ? Admod.SPLASH_ADS : Admod.RESUME_ADS, notification);
+//        if (!BuildConfig.DEBUG){
+//            throw new RuntimeException("Found test ad id on release");
+//        }
     }
 
     /**
@@ -290,12 +337,12 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
         Log.d(TAG, "onActivityResumed: ");
         if (splashActivity == null) {
             if (!activity.getClass().getName().equals(AdActivity.class.getName())) {
-                Log.d(TAG, "onActivityResumed: with " + activity.getClass().getName());
+                Log.d(TAG, "onActivityResumed 1: with " + activity.getClass().getName());
                 fetchAd(false);
             }
         } else {
             if (!activity.getClass().getName().equals(splashActivity.getName()) && !activity.getClass().getName().equals(AdActivity.class.getName())) {
-                Log.d(TAG, "onActivityResumed: with " + activity.getClass().getName());
+                Log.d(TAG, "onActivityResumed 2: with " + activity.getClass().getName());
                 fetchAd(false);
             }
         }
@@ -321,17 +368,18 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
     public void showAdIfAvailable(final boolean isSplash) {
         // Only show ad if there is not already an app open ad currently showing
         // and an ad is available.
-        if (currentActivity != null && AppPurchase.getInstance().isPurchased(currentActivity)) {
-            if (fullScreenContentCallback != null) {
+        if (currentActivity == null || AppPurchase.getInstance().isPurchased(currentActivity)) {
+            if (fullScreenContentCallback != null && enableScreenContentCallback) {
                 fullScreenContentCallback.onAdDismissedFullScreenContent();
             }
             return;
         }
 
         Log.d(TAG, "showAdIfAvailable: " + ProcessLifecycleOwner.get().getLifecycle().getCurrentState());
+        Log.d(TAG, "showAd isSplash: " + isSplash);
         if (!ProcessLifecycleOwner.get().getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) {
             Log.d(TAG, "showAdIfAvailable: return");
-            if (fullScreenContentCallback != null) {
+            if (fullScreenContentCallback != null && enableScreenContentCallback) {
                 fullScreenContentCallback.onAdDismissedFullScreenContent();
             }
 
@@ -339,48 +387,12 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
         }
 
         if (!isShowingAd && isAdAvailable(isSplash)) {
-            Log.d(TAG, "Will show ad.");
-
-            FullScreenContentCallback callback =
-                    new FullScreenContentCallback() {
-                        @Override
-                        public void onAdDismissedFullScreenContent() {
-                            // Set the reference to null so isAdAvailable() returns false.
-                            appResumeAd = null;
-                            if (fullScreenContentCallback != null) {
-                                fullScreenContentCallback.onAdDismissedFullScreenContent();
-                            }
-                            isShowingAd = false;
-                            fetchAd(isSplash);
-
-                        }
-
-                        @Override
-                        public void onAdFailedToShowFullScreenContent(AdError adError) {
-                            if (fullScreenContentCallback != null) {
-                                fullScreenContentCallback.onAdFailedToShowFullScreenContent(adError);
-                            }
-                        }
-
-                        @Override
-                        public void onAdShowedFullScreenContent() {
-                            Log.d(TAG, "onAdShowedFullScreenContent: isSplash = " + isSplash);
-                            isShowingAd = true;
-                            if (isSplash) {
-                                splashAd = null;
-                            } else {
-                                appResumeAd = null;
-                            }
-                        }
-
-
-                    };
-//            if (isSplash) {
-//                splashAd.show(currentActivity, callback);
-//            } else {
-//                appResumeAd.show(currentActivity, callback);
-//            }
-            showAdsWithLoading(isSplash, callback);
+            Log.d(TAG, "Will show ad isSplash:" + isSplash);
+            if (isSplash) {
+                showAdsWithLoading();
+            } else {
+                showResumeAds();
+            }
 
         } else {
             Log.d(TAG, "Ad is not ready");
@@ -390,8 +402,7 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
         }
     }
 
-    private void showAdsWithLoading(final boolean isSplash, final FullScreenContentCallback callback) {
-
+    private void showAdsWithLoading() {
         if (ProcessLifecycleOwner.get().getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) {
             Dialog dialog = null;
             try {
@@ -399,7 +410,87 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                 try {
                     dialog.show();
                 } catch (Exception e) {
-                    if (fullScreenContentCallback != null) {
+                    if (fullScreenContentCallback != null && enableScreenContentCallback) {
+                        fullScreenContentCallback.onAdDismissedFullScreenContent();
+                    }
+                    return;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            final Dialog finalDialog = dialog;
+            new Handler().postDelayed(() -> {
+                if (splashAd != null) {
+                    splashAd.setFullScreenContentCallback(
+                            new FullScreenContentCallback() {
+                                @Override
+                                public void onAdDismissedFullScreenContent() {
+                                    // Set the reference to null so isAdAvailable() returns false.
+                                    appResumeAd = null;
+                                    if (fullScreenContentCallback != null && enableScreenContentCallback) {
+                                        fullScreenContentCallback.onAdDismissedFullScreenContent();
+                                        enableScreenContentCallback = false;
+                                    }
+                                    isShowingAd = false;
+                                    fetchAd(true);
+                                }
+
+                                @Override
+                                public void onAdFailedToShowFullScreenContent(AdError adError) {
+                                    if (fullScreenContentCallback != null && enableScreenContentCallback) {
+                                        fullScreenContentCallback.onAdFailedToShowFullScreenContent(adError);
+                                    }
+                                }
+
+                                @Override
+                                public void onAdShowedFullScreenContent() {
+                                    if (fullScreenContentCallback != null && enableScreenContentCallback) {
+                                        fullScreenContentCallback.onAdShowedFullScreenContent();
+                                    }
+                                    isShowingAd = true;
+                                    splashAd = null;
+                                }
+
+
+                                @Override
+                                public void onAdClicked() {
+                                    super.onAdClicked();
+                                    if (currentActivity != null) {
+                                        FirebaseAnalyticsUtil.logClickAdsEvent(currentActivity, splashAdId);
+                                    }
+                                }
+                            });
+                    splashAd.show(currentActivity);
+                }
+
+                if (currentActivity != null && !currentActivity.isDestroyed() && finalDialog != null && finalDialog.isShowing()) {
+                    Log.d(TAG, "dismiss dialog loading ad open: ");
+                    try {
+                        finalDialog.dismiss();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }, 800);
+        }
+    }
+
+    Dialog dialog = null;
+
+    private void showResumeAds() {
+        if (appResumeAd == null || currentActivity == null || AppPurchase.getInstance().isPurchased(currentActivity)) {
+            return;
+        }
+
+        if (ProcessLifecycleOwner.get().getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) {
+
+            try {
+                dismissDialogLoading();
+                dialog = new ResumeLoadingDialog(currentActivity);
+                try {
+                    dialog.show();
+                } catch (Exception e) {
+                    if (fullScreenContentCallback != null && enableScreenContentCallback) {
                         fullScreenContentCallback.onAdDismissedFullScreenContent();
 
                     }
@@ -409,73 +500,116 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                 e.printStackTrace();
             }
             final Dialog finalDialog = dialog;
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    if (isSplash) {
-                        splashAd.setFullScreenContentCallback(callback);
-                        splashAd.show(currentActivity);
-                    } else {
-                        if (appResumeAd != null){
-                            appResumeAd.setFullScreenContentCallback(callback);
-                            appResumeAd.show(currentActivity);
+            new Handler().postDelayed(() -> {
+                if (appResumeAd != null) {
+                    appResumeAd.setFullScreenContentCallback(new FullScreenContentCallback() {
+                        @Override
+                        public void onAdDismissedFullScreenContent() {
+                            // Set the reference to null so isAdAvailable() returns false.
+                            appResumeAd = null;
+                            if (fullScreenContentCallback != null && enableScreenContentCallback) {
+                                fullScreenContentCallback.onAdDismissedFullScreenContent();
+                            }
+                            isShowingAd = false;
+                            fetchAd(false);
+
+                            if (currentActivity != null && !currentActivity.isDestroyed() && finalDialog != null && finalDialog.isShowing()) {
+                                Log.d(TAG, "dismiss dialog loading ad open: ");
+                                try {
+                                    finalDialog.dismiss();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }
                         }
 
-                    }
-                    if (finalDialog != null) {
-                        finalDialog.dismiss();
-                    }
+                        @Override
+                        public void onAdFailedToShowFullScreenContent(AdError adError) {
+                            Log.e(TAG, "onAdFailedToShowFullScreenContent: " + adError.getMessage());
+                            if (fullScreenContentCallback != null && enableScreenContentCallback) {
+                                fullScreenContentCallback.onAdFailedToShowFullScreenContent(adError);
+                            }
+
+                            if (currentActivity != null && !currentActivity.isDestroyed() && finalDialog != null && finalDialog.isShowing()) {
+                                Log.d(TAG, "dismiss dialog loading ad open: ");
+                                try {
+                                    finalDialog.dismiss();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            appResumeAd = null;
+                            isShowingAd = false;
+                            fetchAd(false);
+                        }
+
+                        @Override
+                        public void onAdShowedFullScreenContent() {
+                            if (fullScreenContentCallback != null && enableScreenContentCallback) {
+                                fullScreenContentCallback.onAdShowedFullScreenContent();
+                            }
+                            isShowingAd = true;
+                            appResumeAd = null;
+                        }
+
+                        @Override
+                        public void onAdClicked() {
+                            super.onAdClicked();
+                            if (currentActivity != null) {
+                                FirebaseAnalyticsUtil.logClickAdsEvent(currentActivity, appResumeAdId);
+                            }
+                        }
+                    });
+                    appResumeAd.show(currentActivity);
                 }
-            }, 800);
+            }, 1000);
         }
     }
 
     public void loadAndShowSplashAds(final String adId) {
         isTimeout = false;
+        enableScreenContentCallback = true;
         if (currentActivity != null && AppPurchase.getInstance().isPurchased(currentActivity)) {
-            if (fullScreenContentCallback != null) {
+            if (fullScreenContentCallback != null && enableScreenContentCallback) {
                 fullScreenContentCallback.onAdDismissedFullScreenContent();
             }
             return;
         }
 
-        if (isAdAvailable(true)) {
-            showAdIfAvailable(true);
-            return;
-        }
+//        if (isAdAvailable(true)) {
+//            showAdIfAvailable(true);
+//            return;
+//        }
 
         loadCallback =
                 new AppOpenAd.AppOpenAdLoadCallback() {
-
-
-
-                    /**
-                     * Called when an app open ad has loaded.
-                     *
-                     * @param appOpenAd the loaded app open ad.
-                     */
-
                     @Override
                     public void onAdLoaded(@NonNull AppOpenAd appOpenAd) {
                         Log.d(TAG, "onAppOpenAdLoaded: splash");
-                        AppOpenManager.this.splashAd = appOpenAd;
-                        splashLoadTime = new Date().getTime();
-                        appOpenAd.setOnPaidEventListener(adValue -> {
-                            FirebaseAnalyticsUtil.logPaidAdImpression(myApplication.getApplicationContext(),
-                                    adValue,
-                                    appOpenAd.getAdUnitId(),
-                                    appOpenAd.getResponseInfo()
-                                            .getMediationAdapterClassName());
-                        });
+
+                        timeoutHandler.removeCallbacks(runnableTimeout);
 
                         if (isTimeout) {
                             Log.e(TAG, "onAppOpenAdLoaded: splash timeout");
-                            if (fullScreenContentCallback != null) {
-                                fullScreenContentCallback.onAdDismissedFullScreenContent();
-                            }
-                            return;
+//                            if (fullScreenContentCallback != null) {
+//                                fullScreenContentCallback.onAdDismissedFullScreenContent();
+//                                enableScreenContentCallback = false;
+//                            }
+                        } else {
+                            AppOpenManager.this.splashAd = appOpenAd;
+                            splashLoadTime = new Date().getTime();
+                            appOpenAd.setOnPaidEventListener(adValue -> {
+                                FirebaseAnalyticsUtil.logPaidAdImpression(myApplication.getApplicationContext(),
+                                        adValue,
+                                        appOpenAd.getAdUnitId(),
+                                        appOpenAd.getResponseInfo()
+                                                .getMediationAdapterClassName());
+                            });
+
+                            showAdIfAvailable(true);
                         }
-                        showAdIfAvailable(true);
+
+
                     }
 
                     /**
@@ -486,8 +620,13 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                     @Override
                     public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                         Log.e(TAG, "onAppOpenAdFailedToLoad: splash " + loadAdError.getMessage());
-                        if (fullScreenContentCallback != null) {
+                        if (isTimeout) {
+                            Log.e(TAG, "onAdFailedToLoad: splash timeout");
+                            return;
+                        }
+                        if (fullScreenContentCallback != null && enableScreenContentCallback) {
                             fullScreenContentCallback.onAdDismissedFullScreenContent();
+                            enableScreenContentCallback = false;
                         }
                     }
 
@@ -498,9 +637,22 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
                 AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT, loadCallback);
 
         if (splashTimeout > 0) {
-            timeoutHandler.sendEmptyMessageDelayed(TIMEOUT_MSG, splashTimeout);
+            timeoutHandler = new Handler();
+            timeoutHandler.postDelayed(runnableTimeout, splashTimeout);
         }
     }
+
+    Runnable runnableTimeout = new Runnable() {
+        @Override
+        public void run() {
+            Log.e(TAG, "timeout load ad ");
+            isTimeout = true;
+            enableScreenContentCallback = false;
+            if (fullScreenContentCallback != null) {
+                fullScreenContentCallback.onAdDismissedFullScreenContent();
+            }
+        }
+    };
 
     @OnLifecycleEvent(Lifecycle.Event.ON_START)
     public void onResume() {
@@ -508,6 +660,18 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
             Log.d(TAG, "onResume: app resume is disabled");
             return;
         }
+
+        if (isInterstitialShowing) {
+            Log.d(TAG, "onResume: interstitial is showing");
+            return;
+        }
+
+        if (disableAdResumeByClickAction) {
+            Log.d(TAG, "onResume:ad resume disable ad by action");
+            disableAdResumeByClickAction = false;
+            return;
+        }
+
         for (Class activity : disabledAppOpenList) {
             if (activity.getName().equals(currentActivity.getClass().getName())) {
                 Log.d(TAG, "onStart: activity is disabled");
@@ -525,7 +689,28 @@ public class AppOpenManager implements Application.ActivityLifecycleCallbacks, L
             return;
         }
 
-        Log.d(TAG, "onStart: show resume ads");
+        Log.d(TAG, "onStart: show resume ads :" + currentActivity.getClass().getName());
         showAdIfAvailable(false);
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
+    public void onStop() {
+        Log.d(TAG, "onStop: app stop");
+
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+    public void onPause() {
+        Log.d(TAG, "onPause");
+    }
+
+    private void dismissDialogLoading() {
+        if (dialog != null && dialog.isShowing()) {
+            try {
+                dialog.dismiss();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

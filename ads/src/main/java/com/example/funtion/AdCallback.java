@@ -9,6 +9,9 @@ import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.nativead.NativeAd;
 
 public class AdCallback {
+    public void onNextAction() {
+    }
+
     public void onAdClosed() {
     }
 
